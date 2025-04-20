@@ -1,36 +1,50 @@
 import React, { useEffect, useState } from "react";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { toggleMenu } from "../utils/appSlice";
 import { YOUTUBE_SEARCH_API } from "../utils/contstant";
-
+import { cacheResults } from "../utils/searchSlice";
 
 const Head = () => {
   const dispatch = useDispatch();
   const [searchQuery, setSearchQuery] = useState("");
-  const [suggestion,setSuggestion] = useState([])
+  const [suggestion, setSuggestion] = useState([]);
+  const [showSuggestionPannel, setShowSuggestionPannel] = useState(false);
 
-  const getSearchSuggestion = async () =>{
-    const data =  await fetch(YOUTUBE_SEARCH_API + searchQuery);
+  const searchCache = useSelector((store) => store.search);
+
+  const getSearchSuggestion = async () => {
+    console.log(searchQuery)
+    const data = await fetch(YOUTUBE_SEARCH_API + searchQuery);
     const json = await data.json();
-    setSuggestion(json[1])
-  }
+    setSuggestion(json[1]);
+    // if not in cache add that searched result in cache ;
+    dispatch(
+      cacheResults({
+        [searchQuery]: json[1],
+      })
+    );
+  };
 
-  useEffect(()=>{
-    const timer = setTimeout(()=>{
-      getSearchSuggestion();
-    },200);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchCache[searchQuery]) {
+        setSuggestion(searchCache[searchQuery]);
+      } else {
+        getSearchSuggestion();
+      }
+    }, 200);
 
-    return () =>{
-      clearTimeout(timer)
-    }
-  },[searchQuery])
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [searchQuery]);
 
   const toggleMenuHandler = () => {
     dispatch(toggleMenu());
   };
 
   return (
-    <div className="grid grid-flow-col p-5 m-2 shadow-lg">
+    <div className="sticky top-0 z-50 bg-white grid grid-flow-col p-5 shadow-lg">
       <div className="flex col-span-1 pt-2">
         <img
           alt="menu"
@@ -48,24 +62,32 @@ const Head = () => {
       </div>
       <div className="col-span-10 px-10">
         <div>
-        <input
-          className="w-1/2 border border-gray-800 px-5 py-2 rounded-l-full"
-          type="text"
-          value={searchQuery}
-          onChange={(e)=>setSearchQuery(e.target.value)}
-        />
-        <button className="border border-gray-800 py-2 px-5 rounded-r-full bg-gray-100">
-          🔍
-        </button>
+          <input
+            className="w-1/2 border border-gray-800 px-5 py-2 rounded-l-full"
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onFocus={(e) => setShowSuggestionPannel(true)}
+            onBlur={(e) => setShowSuggestionPannel(false)}
+          />
+          <button className="border border-gray-800 py-2 px-5 rounded-r-full bg-gray-100">
+            🔍
+          </button>
         </div>
-        <div>
-          <ul className="fixed bg-white  w-[36rem] shadow-lg rounded-2xl">
-            {
-              suggestion.map(s=><li  key={s} className="py-2 px-4 flex items-center gap-3 shadow-sm hover:bg-gray-100">🔍{s}</li> )
-              
-            }
-          </ul>
-        </div>
+        {showSuggestionPannel && (
+          <div>
+            <ul className="fixed bg-white  w-[36rem] shadow-lg rounded-2xl">
+              {suggestion.map((s) => (
+                <li
+                  key={s}
+                  className="py-2 px-4 flex items-center gap-3 shadow-sm hover:bg-gray-100"
+                >
+                  {`🔍 ${s}`}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
       <div className="col-span-1">
         <img
